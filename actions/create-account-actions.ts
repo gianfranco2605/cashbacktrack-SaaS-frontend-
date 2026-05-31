@@ -1,8 +1,17 @@
 'use server';
 
-import { RegisterSchema } from '@/src/schemas';
+import {
+  ErrorResponseSchema,
+  RegisterSchema,
+  SuccessSchema,
+} from '@/src/schemas';
 
-export async function register(formData: FormData) {
+type ActionStateType = {
+  errors: string[];
+  success: string;
+};
+
+export async function register(prevState: ActionStateType, formData: FormData) {
   const registerData = {
     email: formData.get('email'),
     name: formData.get('name'),
@@ -13,9 +22,45 @@ export async function register(formData: FormData) {
   //validation
   const register = RegisterSchema.safeParse(registerData);
 
-  const errors = register.error?.issues.map((issue) => issue.message);
-  console.log(errors);
+  if (!register.success) {
+    const errors = register.error.issues.map((issue) => issue.message);
+
+    return {
+      errors,
+      success: prevState.success,
+    };
+  }
 
   //registration user
-  console.log(register);
+  const url = `${process.env.API_URL}/api/auth/create-account`;
+  const req = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: register.data.name,
+      password: register.data.password,
+      email: register.data.email,
+    }),
+  });
+
+  const json = await req.json();
+
+  const status = req.status;
+
+  if (status === 409) {
+    const error = ErrorResponseSchema.parse(json);
+    return {
+      errors: [error.error],
+      success: prevState.success,
+    };
+  }
+
+  const success = SuccessSchema.parse(json);
+
+  return {
+    errors: [],
+    success,
+  };
 }

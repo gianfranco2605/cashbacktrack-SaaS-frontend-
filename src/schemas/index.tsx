@@ -13,3 +13,8 @@ export const RegisterSchema = z
     message: 'Passwords do not match',
     path: ['password_confirmation'],
   });
+
+export const SuccessSchema = z.string();
+export const ErrorResponseSchema = z.object({
+  error: z.string(),
+});
